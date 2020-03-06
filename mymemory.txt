@@ -1,0 +1,15 @@
+Free, anonymous usage is limited to 1000 words/day.
+Provide a valid email ('de' parameter), where we can reach you in case of troubles, and enjoy 10000 words/day.
+Call example:
+
+https://api.mymemory.translated.net/get?q=Hello World!&langpair=en|it
+
+Parameter	Description	Type	Example value
+q						The sentence you want to translate. Use UTF-8. Max 500 bytes
+langpair		Source and language pair, separated by the | symbol. Use ISO standard names or RFC3066
+of					Output format	Optional	json (default), tmx, serialized php array
+mt					Enables Machine Translation in results. You can turn it off if you want just human segments	Optional	1 (default), 0
+key					Authenticates the request; matches from your private TM are returned too. Get your key here or use the keygen API	Optional
+onlyprivate	If your request is authenticated, returns only matches from your private TM	Optional	0 (default), 1
+ip					The IP of the end user generating the request. Recommended for CAT tools and high volume usage. Originating IP is always overridden by X-Forwarded-For header, if the latter is set	Optional
+de					A valid email where we can reach you in case of troubles. Recommended for CAT tools and high volume usage	Optional
