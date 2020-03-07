@@ -210,7 +210,7 @@ type
 //----- Prompt  -----
 
 type
-  TTranslateBing = class(TTranslateBase)
+  TTranslatePrompt = class(TTranslateBase)
   private
     FFormData:string;
 
@@ -218,7 +218,7 @@ type
   public
     constructor Create;// override;
 
-    function Detect   :boolean; override;
+//    function Detect   :boolean; override;
     function Translate:integer; override;
   end;
 
@@ -1117,7 +1117,7 @@ end;
 
 //===== Prompt =====
 
-constructor TTranslateBabylon.Create;
+constructor TTranslatePrompt.Create;
 begin
   inherited;
 
@@ -1127,8 +1127,7 @@ begin
 end;
 
 procedure TTranslatePrompt.SetLang(index:integer; const alang:string);
-var
-  llang:string;
+//var  llang:string;
 begin
   inherited SetLang(index,alang);
 end;
