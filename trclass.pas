@@ -34,18 +34,19 @@ type
 
     FResult :string;
 
-    //--- Web
+    //--- Web (page translation)
+    //--- Documents
     //--- Dictionary
     //--- TTS
 //    FTTSURL:string;
 
     function  GetLang(const alang:string):string;
-    procedure SetLang(index:integer; const alang:string);
+    procedure SetLang(index:integer; const alang:string); virtual;
 
     function GetResultDescr:string;
 
 //    function GetReady():boolean; // Check for parameters? ready to translate?
-    
+
 //    procedure GetSupportedLangList;
   public
     // Main methods
@@ -94,7 +95,12 @@ type
 type
   TTranslateYandex = class(TTranslateBase)
   private
-    procedure SetLang(index:integer; const alang:string);
+    Fv1Detect:string;
+    Fv1Data  :string;
+    Fv1KeyURL:string;
+    FAppId   :string;
+    
+    procedure SetLang(index:integer; const alang:string); override;
   public
     constructor Create;// override;
 
@@ -107,14 +113,14 @@ type
 type
   TTranslateBabylon = class(TTranslateBase)
   private
-    procedure SetLang(index:integer; const alang:string);
+    procedure SetLang(index:integer; const alang:string); override;
   public
     constructor Create;// override;
 
     function Translate:integer; override;
 
-    property SrcLang:string index 0 read FFrom write SetLang;
-    property DstLang:string index 1 read FTo   write SetLang;
+//    property SrcLang:string index 0 read FFrom write SetLang;
+//    property DstLang:string index 1 read FTo   write SetLang;
   end;
 
 //----- MyMemory -----
@@ -178,13 +184,44 @@ type
     FAPIv2Data  :string;
     FAPIv2Detect:string;
 
-    procedure SetLang(index:integer; const alang:string);
+    procedure SetLang(index:integer; const alang:string); override;
   public
     constructor Create;// override;
 
     function Detect   :boolean; override;
     function Translate:integer; override;
   end;
+
+//----- Bing -----
+
+type
+  TTranslateBing = class(TTranslateBase)
+  private
+    FFormData:string;
+
+    procedure SetLang(index:integer; const alang:string); override;
+  public
+    constructor Create;// override;
+
+    function Detect   :boolean; override;
+    function Translate:integer; override;
+  end;
+
+//----- Prompt  -----
+
+type
+  TTranslateBing = class(TTranslateBase)
+  private
+    FFormData:string;
+
+    procedure SetLang(index:integer; const alang:string); override;
+  public
+    constructor Create;// override;
+
+    function Detect   :boolean; override;
+    function Translate:integer; override;
+  end;
+
 
 //==========
 
@@ -310,6 +347,11 @@ begin
   FHost   := 'https://translate.yandex.net/';
   FDetect := 'api/v1.5/tr.json/detect?text={text}&key={key}';
   FData   := 'api/v1.5/tr.json/translate?lang={from}-{to}&key={key}&text={text}';
+
+  Fv1Data   := 'api/v1/tr.json/translate?id={appid}-0-0&srv=tr-text&lang={from}-{to}&text={text}';
+  Fv1Detect := 'api/v1/tr.json/detect?sid={appid}&srv=tr-text&text={text}'; // 256 symbols
+  Fv1KeyURL := 'https://oauth.yandex.ru/client/new';
+  FAppId    := 'a5ab1325.5e62b3ea.9eab678d'; // Vivaldi
 end;
 
 procedure TTranslateYandex.SetLang(index:integer; const alang:string);
@@ -377,6 +419,14 @@ begin
   end;
 
   FOut:='';
+
+  if FAPIKey='' then
+  begin
+    result :=401;
+    FResult:=sWrongAPIKey;
+    exit;
+  end;
+
   result:=DefaultResCode;
 
   if FTo='' then
@@ -393,10 +443,7 @@ begin
 
     ls:=FData;
 
-    if FAPIKey='' then
-      ls:=StringReplace(ls,'&key={key}','',[rfReplaceAll])
-    else
-      ls:=StringReplace(ls,'{key}',FAPIKey,[rfReplaceAll]);
+    ls:=StringReplace(ls,'{key}',FAPIKey,[rfReplaceAll]);
 
     ls:=StringReplace(ls,'{to}',FTo,[rfReplaceAll]);
     if FAuto then
@@ -482,7 +529,7 @@ begin
     'zh-cn': i:=10;
     'zh-tw': i:=9;
   else
-    ls:=iso639.GetLangAlpha2(llang);
+    ls:=iso639.GetLangA2(llang);
     if ls<>'' then
     begin
       for j:=0 to High(SupLangBabylon) do
@@ -893,6 +940,252 @@ begin
         end;
       end;
 
+    end;
+
+  except
+  end;
+  ltr.Free;
+end;
+
+//===== Bing =====
+
+constructor TTranslateBing.Create;
+begin
+  inherited;
+
+  FDocURL   := '';
+  FKeyURL   := '';
+  FHost     := 'https://www.bing.com/';
+  FDetect   := '';
+  FData     := 'ttranslatev3/';
+  FFormData := 'text={text}&fromLang={from}&to={to}';
+
+end;
+
+procedure TTranslateBing.SetLang(index:integer; const alang:string);
+var
+  llang:string;
+begin
+  llang:=LowerCase(alang);
+
+  case llang of
+    'zh-cn': llang:='zh-Hans';
+    'zh-tw': llang:='zh-Hant';
+  else
+    inherited SetLang(index,alang);
+    // here lang separated to [From/To] already
+    if index=0 then
+    begin
+      case FFrom of
+        'bs': FFrom:='bs-Latn';
+        'no': FFrom:='nb';      //?? awk, not js
+        'pt': FFrom:='pt-pt';   //?? awk, not js
+        'sr': FFrom:='sr-Cyrl'; //?? js, not awk
+      end;
+    end
+    else
+    begin
+      case FTo of
+        'bs': FTo:='bs-Latn';
+        'no': FTo:='nb';      //?? awk, not js
+        'pt': FTo:='pt-pt';   //?? awk, not js
+        'sr': FTo:='sr-Cyrl'; //?? js, not awk
+      end;
+    end;
+
+    exit;
+  end;
+
+  if index=0 then
+    FFrom:=llang
+  else
+    FTo:=llang;
+end;
+
+function TTranslateBing.Detect:boolean;
+{
+var
+  ls:AnsiString;
+  ltr:TFPHTTPClient;
+  jn:TJsonNode;
+}
+begin
+  result:=inherited;
+(*
+  result:=false;
+  ltr:=TFPHTTPClient.Create(nil);
+  try
+    ltr.IOTimeout:=FTimeout;
+
+    ls:=FDetect;
+
+    ls:=StringReplace(ls,'{from}','auto-detect',[rfReplaceAll])
+    ls:=StringReplace(ls,'{text}',EncodeURLElement(FText),[rfReplaceAll]);
+
+    ls:=ltr.FormPost(FHost,ls);
+
+    if ls<>'' then
+    begin
+      jn:=TJsonNode.Create;
+      try
+        if jn.TryParse(ls) then
+        begin
+        end;
+      finally
+        jn.Free;
+      end;
+    end;
+
+  except
+  end;
+  ltr.Free;
+*)
+end;
+
+function TTranslateBing.Translate:integer;
+var
+  ls:AnsiString;
+  ltr:TFPHTTPClient;
+  jn,jl:TJsonNode;
+begin
+  if (FFrom=FTo) or (FText='') then
+  begin
+    FOut:=FText;
+    FResult:='';
+    result:=0;
+  end;
+
+  FOut:='';
+
+  result:=DefaultResCode;
+
+  if FTo='' then
+  begin
+    FResult:=sWrongLanguage;
+    exit;
+  end;
+
+  FResult:=sUnknownError;
+
+  ltr:=TFPHTTPClient.Create(nil);
+  try
+    ltr.IOTimeout:=FTimeout;
+
+    ls:=FFormData;
+
+    ls:=StringReplace(ls,'{to}',FTo,[rfReplaceAll]);
+    if FAuto then
+    begin
+      ls:=StringReplace(ls,'{from}','auto-detect',[rfReplaceAll])
+    end
+    else
+      ls:=StringReplace(ls,'{from}',FFrom,[rfReplaceAll]);
+
+    ls:=StringReplace(ls,'{text}',EncodeURLElement(FText),[rfReplaceAll]);
+
+    ls:=ltr.FormPost(FHost+FData,ls);
+
+    if ls<>'' then
+    begin
+      jn:=TJsonNode.Create;
+      try
+        if jn.TryParse(ls) then
+        begin
+          if FAuto then
+          begin
+            jl:=jn.Find('0/detectedLanguage/language');
+            if jl<>nil then
+              FFrom:=jl.AsString;
+          end;
+          jl:=jn.Find('0/translations/0/text');
+          if jl<>nil then
+          begin
+            FOut   :=jl.AsString;
+            result :=0;
+            FResult:='';
+          end;
+        end;
+      finally
+        jn.Free;
+      end;
+    end;
+
+  except
+  end;
+  ltr.Free;
+end;
+
+//===== Prompt =====
+
+constructor TTranslateBabylon.Create;
+begin
+  inherited;
+
+  FHost := 'https://www.online-translator.com';
+  FData := '/services/soap.asmx/GetTranslation';
+  FFormData := '';
+end;
+
+procedure TTranslatePrompt.SetLang(index:integer; const alang:string);
+var
+  llang:string;
+begin
+  inherited SetLang(index,alang);
+end;
+
+function TTranslatePrompt.Translate:integer;
+var
+  ls:string;
+  ltr:TFPHTTPClient;
+  jn:TJsonNode;
+begin
+  FOut:='';
+  result:=DefaultResCode;
+
+  if FAuto or (FFrom='') or (FTo='') then
+  begin
+    FResult:=sWrongLanguage;
+    exit;
+  end;
+
+  if (FFrom=FTo) or (FText='') then
+  begin
+    FOut:=FText;
+    FResult:='';
+    result:=0;
+  end;
+
+  FResult:=sUnknownError;
+
+  ltr:=TFPHTTPClient.Create(nil);
+  try
+    ltr.IOTimeout:=FTimeout;
+
+    ls:=FFormData;
+    ls:=StringReplace(ls,'{to}'  ,FTo  ,[rfReplaceAll]);
+    ls:=StringReplace(ls,'{from}',FFrom,[rfReplaceAll]);
+    ls:=StringReplace(ls,'{text}',EncodeURLElement(FText),[rfReplaceAll]);
+
+    ls:=ltr.FormPost(FHost+FData,ls);
+
+    jn:=TJsonNode.Create;
+    try
+      if jn.TryParse(ls) then
+      begin
+{
+        result:=round(jn.AsArray.Child(2).AsNumber);
+        if result=200 then
+        begin
+          FOut:=jn.AsArray.Child(1).Child('translatedText').AsString;
+          FResult:='';
+          result:=0;
+        end
+        else
+          FResult:=sUnknownError+' '+IntToStr(result);
+}
+      end;
+    finally
+      jn.Free;
     end;
 
   except
