@@ -8,22 +8,32 @@ const
   DefaultResCode = 1;
 
 type
+  TTransType = (
+    trTranslate,  // text translation
+    trDetect,     // autodetect ability (NOT "detect" method, it virtual, can be overrided)
+    trDictionary, // dictionary
+    trTTS,        // TTS
+    trWeb,        // web page translation
+    trDocument    // file (documents) translation
+  );
+  TTranslateType = set of TTransType;
+
+type
   TTranslateBase = class
   private
     //--- Common
-//    FWebHost:string;
-    FDocURL:string;
-    FKeyURL:string;
-    FHost  :string;
-    FData  :string;
-    FDetect:string;
-
-    dummy:string; //!!!!
-
+    FName  :string;
+    FDescr :string;
     FNotes :string; // limits etc
+    // Site / request base host
+    FHost  :string;
+
+    // can be use for reading
+    FDocURL:string; // API/usage documentation URL
+    FKeyURL:string; // key/id registering URL
 
     FTimeout:integer;
-    FAPIKey :string;
+    FAPIKey :string;  // APIkey or AppId - same storage?
     // language
     FAuto   :boolean;
     FFrom,
@@ -31,59 +41,53 @@ type
     // text
     FText,
     FOut    :string;
-
+    // Error description
     FResult :string;
 
+    FSupport:TTranslateType;
+
     //--- Web (page translation)
+//    FWebHost:string;
     //--- Documents
     //--- Dictionary
     //--- TTS
 //    FTTSURL:string;
 
-    function  GetLang(const alang:string):string;
-    procedure SetLang(index:integer; const alang:string); virtual;
-
     function GetResultDescr:string;
 
-//    function GetReady():boolean; // Check for parameters? ready to translate?
+    procedure SetLang(index:integer; const alang:string); virtual;
+    procedure SetAuto(aval:boolean);
 
-//    procedure GetSupportedLangList;
   public
     // Main methods
     constructor Create; 
-    function    Detect   :boolean; virtual; // Detect language of text
-    function    Translate:integer; virtual; // Translate text
 
-    // all other
-    procedure RegisterKey; //?? Register API key (open web page?)
-    
+    function Detect   :boolean; virtual; // Detect language of text
+    function Translate:integer; virtual; // Translate text
+
     //--- properties
     // common
     property Timeout:integer read FTimeout write FTimeout default DefaultTimeout;
 
     // changeable
-    property LangAuto:boolean read FAuto write FAuto;
+    property LangAuto:boolean read FAuto write SetAuto;
     property LangSrc:string index 0 read FFrom write SetLang;
     property LangDst:string index 1 read FTo   write SetLang;
 
-    property Key:string  read FAPIKey write FAPIKey; // API key (if presents)
+    property Key:string read FAPIKey write FAPIKey; // API key (if presents)
 
     // process
-    property Original  :string  read FText write FText; // Original text
-    property Translated:string  read FOut;              // Translated text
-
-    property ResultNote:string  read GetResultDescr;    // Translation result description
+    property Original  :string read FText write FText; // Original text
+    property Translated:string read FOut;              // Translated text
+    property ResultNote:string read GetResultDescr;    // Translation result description
 
     // personal
-    property Site:string read FHost write FHost; //??
-
+    property Site :string read FHost;
+    property Name :string read FName;
+    property Descr:string read FDescr;
     property Notes:string read FNotes;
 
-//    property Support; // web, translation, dictionary, speak
-
-    // languages
-    property LangList :string read dummy;
-    property LangPairs:string read dummy;
+    property Supported:TTranslateType read FSupport;
   end;
 
 
@@ -95,12 +99,9 @@ type
 type
   TTranslateYandex = class(TTranslateBase)
   private
-    Fv1Detect:string;
-    Fv1Data  :string;
-    Fv1KeyURL:string;
-    FAppId   :string;
-    
-    procedure SetLang(index:integer; const alang:string); override;
+//    Fv1KeyURL:string;
+    FAppId:string;
+
   public
     constructor Create;// override;
 
@@ -118,9 +119,6 @@ type
     constructor Create;// override;
 
     function Translate:integer; override;
-
-//    property SrcLang:string index 0 read FFrom write SetLang;
-//    property DstLang:string index 1 read FTo   write SetLang;
   end;
 
 //----- MyMemory -----
@@ -140,39 +138,7 @@ type
 //----- Google -----
 
 (*
-  client -
-  sl     - source language
-  tl     - target language
-  hl     - help language
-  dt=at  - alternative translations
-  dt=bd  - dictionary, in case source text is one word (you get translations with articles, reverse translations, etc.)
-  dt=dj  - Json response with names. (dj=1)
-  dt=ex  - examples
-  dt=gt  - gender-specific translations
-  dt=ld  - identified source languages
-  dt=md  - definitions of source text, if it's one word
-  dt=qc  -
-  dt=qca - qc with autocorrect
-  dt=rm  - transcription / transliteration of source and translated texts
-  dt=rw  - 'See also' list.
-  dt=ss  - synonyms of source text, if it's one word
-  dt=sw  -
-  dt=t   - translation of source text
-  ie     - 'UTF-8',
-  oe     - 'UTF-8',
-  otf    - 1 / 2
-  srcrom - 1
-  ssel   - 0 / 3
-  tsel   - 0 / 4
-  kc     - 7
-  q      - text
-  tbb    - 1
-  tk     - token 520078|504525 / 519592|450115
-  prev   - btn
-  rom    - 1
-
 TTS: '/translate_tts?ie=UTF-8&q={text}&tl={to}&client=webapp&ttsspeed=0.24';
-
 TTS: 'https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&sl={from}&tl={to}&q={text}&ttsspeed=0.24'
 WEB: 'https://translate.google.com/translate?hl=en&sl={from}&tl={to}&u={url}'
       https://translate.google.com/translate?u={url}&langpair={from}%7C{to}&ie=UTF-8&oe=UTF-8
@@ -180,9 +146,7 @@ WEB: 'https://translate.google.com/translate?hl=en&sl={from}&tl={to}&u={url}'
 type
   TTranslateGoogle = class(TTranslateBase)
   private
-    FAPIv2Host  :string;
-    FAPIv2Data  :string;
-    FAPIv2Detect:string;
+    FAPIv2Host:string;
 
     procedure SetLang(index:integer; const alang:string); override;
   public
@@ -197,8 +161,6 @@ type
 type
   TTranslateBing = class(TTranslateBase)
   private
-    FFormData:string;
-
     procedure SetLang(index:integer; const alang:string); override;
   public
     constructor Create;// override;
@@ -207,21 +169,38 @@ type
     function Translate:integer; override;
   end;
 
-//----- Prompt  -----
+//----- Promt (not ready) -----
 
 type
-  TTranslatePrompt = class(TTranslateBase)
+  TTranslatePromt = class(TTranslateBase)
   private
-    FFormData:string;
-
-    procedure SetLang(index:integer; const alang:string); override;
   public
     constructor Create;// override;
 
-//    function Detect   :boolean; override;
     function Translate:integer; override;
   end;
 
+//----- M-Translate -----
+
+type
+  TTranslateMTranslate = class(TTranslateBase)
+  private
+  public
+    constructor Create;// override;
+
+    function Translate:integer; override;
+  end;
+
+//----- Translate -----
+
+type
+  TTranslateTranslate = class(TTranslateBase)
+  private
+  public
+    constructor Create;// override;
+
+    function Translate:integer; override;
+  end;
 
 //==========
 
@@ -229,9 +208,6 @@ implementation
 
 uses
   sysutils,
-
-//  LCLIntf,
-  
   fphttpclient,
   opensslsockets,
   jsontools,
@@ -255,7 +231,25 @@ constructor TTranslateBase.Create;
 begin
   inherited;
 
-  FTimeout:=DefaultTimeout;
+  FTimeout := DefaultTimeout;
+  FAuto    := false;
+
+  FName   := 'default';
+  FDescr  := 'Base translation handler';
+  //
+  FHost   := '';
+  FDocURL := '';
+  FKeyURL := '';
+
+  FSupport := [];
+end;
+
+procedure TTranslateBase.SetAuto(aval:boolean);
+begin
+  if not (trDetect in FSupport) then
+    FAuto:=false
+  else
+    FAuto:=aval;
 end;
 
 procedure TTranslateBase.SetLang(index:integer; const alang:string);
@@ -290,17 +284,20 @@ end;
 
 function TTranslateBase.Translate:integer;
 begin
+  FResult:='';
   if (FFrom=FTo) or (FText='') then
   begin
     FOut:=FText;
-    FResult:='';
     result:=0;
   end
   else
   begin
-    FOut   :='';
-    result :=DefaultResCode;
-    FResult:=sWrongLanguage;
+    FOut:='';
+    result:=DefaultResCode;
+
+    if (FTo='') or ((FFrom='') and
+       (not (FAuto and (trDetect in FSupport)))) then FResult:=sWrongLanguage
+    else if not     (trTranslate in FSupport)    then FResult:=sCantTranslate;
   end;
 end;
 
@@ -310,22 +307,6 @@ function TTranslateBase.GetResultDescr:string;
 begin
   result:=FResult;
 end;
-
-{
-procedure TTranslateBase.GetSupportedLangList;
-begin
-end;
-}
-procedure TTranslateBase.RegisterKey;
-begin
-//  OpenURL(FKeyURL);
-end;
-
-function TTranslateBase.GetLang(const alang:string):string;
-begin
-  result:=alang;
-end;
-
 
 //===== Yandex =====
 
@@ -342,22 +323,21 @@ constructor TTranslateYandex.Create;
 begin
   inherited;
 
-  FDocURL := 'https://yandex.ru/dev/translate/doc/dg/concepts/about-docpage/';
-  FKeyURL := 'https://translate.yandex.ru/developers/keys';
-  FHost   := 'https://translate.yandex.net/';
-  FDetect := 'api/v1.5/tr.json/detect?text={text}&key={key}';
-  FData   := 'api/v1.5/tr.json/translate?lang={from}-{to}&key={key}&text={text}';
+  FName  := 'Yandex';
+  FDescr := 'Translate Russian, Spanish, German, French and a number of other languages to and '+
+            'from English. You can translate individual words, as well as whole texts and webpages.';
+  FHost  := 'https://translate.yandex.net/';
 
-  Fv1Data   := 'api/v1/tr.json/translate?id={appid}-0-0&srv=tr-text&lang={from}-{to}&text={text}';
-  Fv1Detect := 'api/v1/tr.json/detect?sid={appid}&srv=tr-text&text={text}'; // 256 symbols
-  Fv1KeyURL := 'https://oauth.yandex.ru/client/new';
-  FAppId    := 'a5ab1325.5e62b3ea.9eab678d'; // Vivaldi
-end;
+  FDocURL := 'https://yandex.com/dev/translate/doc/dg/concepts/about-docpage/';
+  FKeyURL := 'https://translate.yandex.com/developers/keys';
 
-procedure TTranslateYandex.SetLang(index:integer; const alang:string);
-begin
-  inherited SetLang(index,alang);
-   // check the list here
+//  Fv1KeyURL := 'https://oauth.yandex.com/client/new';
+
+  // not APP ID but Sesion ID
+  FAppId := 'a5ab1325.5e62b3ea.9eab678d';
+//            'f6932bf5.5e6650a0.dce10065'
+
+  FSupport := [trTranslate,trDetect];
 end;
 
 function TTranslateYandex.Detect:boolean;
@@ -372,8 +352,10 @@ begin
   try
     ltr.IOTimeout:=FTimeout;
 
-    ls:=FDetect;
+    ls:='api/v1.5/tr.json/detect?text={text}&key={key}';
 
+    //??
+//  Fv1Detect := 'api/v1/tr.json/detect?sid={appid}&srv=tr-text&text={text}'; // 256 symbols
     if FAPIKey='' then
       ls:=StringReplace(ls,'&key={key}','',[rfReplaceAll])
     else
@@ -411,29 +393,17 @@ var
   ltr:TFPHTTPClient;
   jn:TJsonNode;
 begin
-  if (FFrom=FTo) or (FText='') then
-  begin
-    FOut:=FText;
-    FResult:='';
-    result:=0;
-  end;
+  result:=inherited;
+  if (result=0) or (FResult<>'') then exit;
 
-  FOut:='';
-
+{
   if FAPIKey='' then
   begin
     result :=401;
     FResult:=sWrongAPIKey;
     exit;
   end;
-
-  result:=DefaultResCode;
-
-  if FTo='' then
-  begin
-    FResult:=sWrongLanguage;
-    exit;
-  end;
+}
 
   FResult:=sUnknownError;
 
@@ -441,54 +411,61 @@ begin
   try
     ltr.IOTimeout:=FTimeout;
 
-    ls:=FData;
-
-    ls:=StringReplace(ls,'{key}',FAPIKey,[rfReplaceAll]);
-
-    ls:=StringReplace(ls,'{to}',FTo,[rfReplaceAll]);
-    if FAuto then
+    if FAPIKey='' then
     begin
-      ls:=StringReplace(ls,'{from}-','',[rfReplaceAll])
+      ls:='api/v1/tr.json/translate?id={appid}-0-0&srv=tr-text&lang={from}-{to}&text={text}';
+      ls:=StringReplace(ls,'{appid}',FAppId,[rfReplaceAll]);
     end
     else
-      ls:=StringReplace(ls,'{from}' ,FFrom,[rfReplaceAll]);
-
-    ls:=StringReplace(ls,'{text}',EncodeURLElement(FText),[rfReplaceAll]);
-
-    ls:=ltr.Post(FHost+ls);
-
-    if ls<>'' then
     begin
-      jn:=TJsonNode.Create;
-      try
-        if jn.TryParse(ls) then
-        begin
-          result:=round(jn.Child('code').AsNumber);
-          if result=200 then
-          begin
-            FOut   :=jn.Child('text').AsArray.Child(0).AsString;
-            result :=0;
-            FResult:='';
-          end
-          else
-          begin
-            case result of
-              401: FResult:=sWrongAPIKey;
-              402: FResult:=sKeyBlocked;
-              404: FResult:=sTooMuchText;
-              413: FResult:=sTooLongText;
-              422: FResult:=sCantTranslate;
-              501: FResult:=sWrongLanguage;
-            else
-              FResult:=sUnknownError+' '+IntToStr(result);
-            end;
-          end;
-        end;
-      finally
-        jn.Free;
-      end;
+      ls:='api/v1.5/tr.json/translate?lang={from}-{to}&key={key}&text={text}';
+
+      ls:=StringReplace(ls,'{key}',FAPIKey,[rfReplaceAll]);
     end;
 
+      ls:=StringReplace(ls,'{to}',FTo,[rfReplaceAll]);
+      if FAuto then
+      begin
+        ls:=StringReplace(ls,'{from}-','',[rfReplaceAll])
+      end
+      else
+        ls:=StringReplace(ls,'{from}' ,FFrom,[rfReplaceAll]);
+
+      ls:=StringReplace(ls,'{text}',EncodeURLElement(FText),[rfReplaceAll]);
+
+      ls:=ltr.Post(FHost+ls);
+
+      if ls<>'' then
+      begin
+        jn:=TJsonNode.Create;
+        try
+          if jn.TryParse(ls) then
+          begin
+            result:=round(jn.Child('code').AsNumber);
+            if result=200 then
+            begin
+              FOut   :=jn.Child('text').AsArray.Child(0).AsString;
+              result :=0;
+              FResult:='';
+            end
+            else
+            begin
+              case result of
+                401: FResult:=sWrongAPIKey;
+                402: FResult:=sKeyBlocked;
+                404: FResult:=sTooMuchText;
+                413: FResult:=sTooLongText;
+                422: FResult:=sCantTranslate;
+                501: FResult:=sWrongLanguage;
+              else
+                FResult:=sUnknownError+' '+IntToStr(result);
+              end;
+            end;
+          end;
+        finally
+          jn.Free;
+        end;
+      end;
   except
   end;
   ltr.Free;
@@ -511,9 +488,13 @@ constructor TTranslateBabylon.Create;
 begin
   inherited;
 
-  FHost := 'https://translation.babylon-software.com/';
-  FData := 'translate/babylon.php?v=1.0&callback=callbackFn&context=babylon'+
-           '&langpair={from}%7C{to}&q={text}';
+  FName  := 'Babylon';
+  FDescr := 'Search for literally millions of terms in Babylon''s database of over 1,600 '+
+            'dictionaries and glossaries from the most varied fields of information. '+
+            'All in more than 75 languages.';
+  FHost  := 'https://translation.babylon-software.com/';
+
+  FSupport := [trTranslate];
 end;
 
 procedure TTranslateBabylon.SetLang(index:integer; const alang:string);
@@ -560,21 +541,8 @@ var
   ltr:TFPHTTPClient;
   jn:TJsonNode;
 begin
-  FOut:='';
-  result:=DefaultResCode;
-
-  if FAuto or (FFrom='') or (FTo='') then
-  begin
-    FResult:=sWrongLanguage;
-    exit;
-  end;
-
-  if (FFrom=FTo) or (FText='') then
-  begin
-    FOut:=FText;
-    FResult:='';
-    result:=0;
-  end;
+  result:=inherited;
+  if (result=0) or (FResult<>'') then exit;
 
   FResult:=sUnknownError;
 
@@ -582,7 +550,9 @@ begin
   try
     ltr.IOTimeout:=FTimeout;
 
-    ls:=FData;
+    ls:='translate/babylon.php?v=1.0&callback=callbackFn&context=babylon'+
+        '&langpair={from}%7C{to}&q={text}';
+
     ls:=StringReplace(ls,'{to}'  ,FTo  ,[rfReplaceAll]);
     ls:=StringReplace(ls,'{from}',FFrom,[rfReplaceAll]);
     ls:=StringReplace(ls,'{text}',EncodeURLElement(FText),[rfReplaceAll]);
@@ -623,11 +593,14 @@ constructor TTranslateMyMemory.Create;
 begin
   inherited;
 
-  FDocURL:='https://mymemory.translated.net/doc/spec.php';
-  FKeyURL:='https://mymemory.translated.net/doc/keygen.php';
+  FName  := 'MyMemory';
+  FDescr := '';
+  FHost  := 'https://api.mymemory.translated.net/';
+
+  FDocURL := 'https://mymemory.translated.net/doc/spec.php';
+  FKeyURL := 'https://mymemory.translated.net/doc/keygen.php';
   
-  FHost := 'https://api.mymemory.translated.net/';
-  FData := 'get?q={text}&langpair={from}%7C{to}&key={key}&de={email}';
+  FSupport := [trTranslate];
 end;
 
 function TTranslateMyMemory.Translate:integer;
@@ -636,21 +609,8 @@ var
   ltr:TFPHTTPClient;
   jn,jl:TJsonNode;
 begin
-  FOut:='';
-  result:=DefaultResCode;
-
-  if FAuto or (FFrom='') or (FTo='') then
-  begin
-    FResult:=sWrongLanguage;
-    exit;
-  end;
-
-  if (FFrom=FTo) or (FText='') then
-  begin
-    FOut:=FText;
-    FResult:='';
-    result:=0;
-  end;
+  result:=inherited;
+  if (result=0) or (FResult<>'') then exit;
 
   FResult:=sUnknownError;
 
@@ -658,7 +618,7 @@ begin
   try
     ltr.IOTimeout:=FTimeout;
 
-    ls:=FData;
+    ls:='get?q={text}&langpair={from}%7C{to}&key={key}&de={email}';
 
     if FEmail='' then
       ls:=StringReplace(ls,'&de={email}','',[rfReplaceAll])
@@ -712,21 +672,53 @@ end;
 
 //===== Google =====
 
+{
+  client -
+  sl     - source language
+  tl     - target language
+  hl     - help language
+  dt=at  - alternative translations
+  dt=bd  - dictionary, in case source text is one word (you get translations with articles, reverse translations, etc.)
+  dt=dj  - Json response with names. (dj=1)
+  dt=ex  - examples
+  dt=gt  - gender-specific translations
+  dt=ld  - identified source languages
+  dt=md  - definitions of source text, if it's one word
+  dt=qc  -
+  dt=qca - qc with autocorrect
+  dt=rm  - transcription / transliteration of source and translated texts
+  dt=rw  - 'See also' list.
+  dt=ss  - synonyms of source text, if it's one word
+  dt=sw  -
+  dt=t   - translation of source text
+  ie     - 'UTF-8',
+  oe     - 'UTF-8',
+  otf    - 1 / 2
+  srcrom - 1
+  ssel   - 0 / 3
+  tsel   - 0 / 4
+  kc     - 7
+  q      - text
+  tbb    - 1
+  tk     - token 520078|504525 / 519592|450115
+  prev   - btn
+  rom    - 1
+}
+
 constructor TTranslateGoogle.Create;
 begin
   inherited;
 
-  FKeyUrl:='';
-
-  FAPIv2Host  := 'https://translation.googleapis.com/';
-  FAPIv2Data  := 'language/translate/v2?key={key}&q={text}&source={from}&target={to}';
-  FAPIv2Detect:= 'language/translate/v2/detect?key={key}&q={text}';
-
+  FName  := 'Google';
+  FDescr := 'Google''s free online language translation service instantly translates text and web pages.';
   FHost  := 'https://translate.google.com/';
-  FDetect:= 'translate_a/single?client=x&sl=auto&dt=ld&ie=UTF-8&oe=UTF-8&q={text}';
-  FData  := 'translate_a/single?client=x&sl={from}&tl={to}&hl=en'+
-//    '&dt=bd&dt=ex&dt=ld&dt=md&dt=qc&dt=rw&dt=rm&dt=ss&dt=t&dt=at'+
-    '&dt=t&dt=ld&ie=UTF-8&oe=UTF-8&q={text}';
+  
+  FDocURL := '';
+  FKeyURL := '';
+
+  FAPIv2Host := 'https://translation.googleapis.com/';
+
+  FSupport := [trTranslate,trDetect];
 end;
 
 procedure TTranslateGoogle.SetLang(index:integer; const alang:string);
@@ -736,16 +728,17 @@ begin
   llang:=LowerCase(alang);
 
   case llang of
-    'zh-cn',
-    'zh-tw': begin
-      if index=0 then
-        FFrom:=llang
-      else
-        FTo:=llang;
-    end;
+    'zh-cn': llang:='zh-CN';
+    'zh-tw': llang:='zh-TW';
   else
     inherited SetLang(index,alang);
+    exit;
   end;
+
+  if index=0 then
+    FFrom:=llang
+  else
+    FTo:=llang;
 end;
 
 function TTranslateGoogle.Detect:boolean;
@@ -762,7 +755,8 @@ begin
     try
       ltr.IOTimeout:=FTimeout;
 
-      ls:=FDetect;
+      ls:='translate_a/single?client=x&sl=auto&dt=ld&ie=UTF-8&oe=UTF-8&q={text}';
+
       ls:=StringReplace(ls,'{text}',EncodeURLElement(FText),[rfReplaceAll]);
 
       ls:=ltr.Get(FHost+ls);
@@ -796,7 +790,7 @@ begin
     try
       ltr.IOTimeout:=FTimeout;
 
-      ls:=FAPIv2Detect;
+      ls:='language/translate/v2/detect?key={key}&q={text}';
 
       ls:=StringReplace(ls,'{key}' ,FAPIKey,[rfReplaceAll]);
       ls:=StringReplace(ls,'{text}',EncodeURLElement(FText),[rfReplaceAll]);
@@ -833,21 +827,8 @@ var
   ltr:TFPHTTPClient;
   jn,jl,jc:TJsonNode;
 begin
-  if (FFrom=FTo) or (FText='') then
-  begin
-    FOut:=FText;
-    FResult:='';
-    result:=0;
-  end;
-
-  FOut:='';
-  result:=DefaultResCode;
-
-  if FTo='' then
-  begin
-    FResult:=sWrongLanguage;
-    exit;
-  end;
+  result:=inherited;
+  if (result=0) or (FResult<>'') then exit;
 
   FResult:=sUnknownError;
 
@@ -859,7 +840,10 @@ begin
     begin
       //--- Free version
 
-      ls:=FData;
+      ls:='translate_a/single?client=x&sl={from}&tl={to}&hl=en'+
+//          '&dt=bd&dt=ex&dt=ld&dt=md&dt=qc&dt=rw&dt=rm&dt=ss&dt=t&dt=at'+
+          '&dt=t&dt=ld&ie=UTF-8&oe=UTF-8&q={text}';
+
       ls:=StringReplace(ls,'{to}',FTo,[rfReplaceAll]);
 
       if FAuto then
@@ -901,7 +885,8 @@ begin
     else
     begin
       //--- Paid API version
-      ls:=FAPIv2Data;
+      ls:='language/translate/v2?key={key}&q={text}&source={from}&target={to}';
+
       ls:=StringReplace(ls,'{key}',FAPIKey,[rfReplaceAll]);
 
       ls:=StringReplace(ls,'{to}',FTo,[rfReplaceAll]);
@@ -953,13 +938,14 @@ constructor TTranslateBing.Create;
 begin
   inherited;
 
+  FName  := 'Bing';
+  FDescr := 'Microsoft Translator is a cloud service that translates between 60+ languages.';
+  FHost  := 'https://www.bing.com/';
+
   FDocURL   := '';
   FKeyURL   := '';
-  FHost     := 'https://www.bing.com/';
-  FDetect   := '';
-  FData     := 'ttranslatev3/';
-  FFormData := 'text={text}&fromLang={from}&to={to}';
 
+  FSupport := [trTranslate,trDetect];
 end;
 
 procedure TTranslateBing.SetLang(index:integer; const alang:string);
@@ -1048,22 +1034,8 @@ var
   ltr:TFPHTTPClient;
   jn,jl:TJsonNode;
 begin
-  if (FFrom=FTo) or (FText='') then
-  begin
-    FOut:=FText;
-    FResult:='';
-    result:=0;
-  end;
-
-  FOut:='';
-
-  result:=DefaultResCode;
-
-  if FTo='' then
-  begin
-    FResult:=sWrongLanguage;
-    exit;
-  end;
+  result:=inherited;
+  if (result=0) or (FResult<>'') then exit;
 
   FResult:=sUnknownError;
 
@@ -1071,7 +1043,7 @@ begin
   try
     ltr.IOTimeout:=FTimeout;
 
-    ls:=FFormData;
+    ls:='text={text}&fromLang={from}&to={to}';
 
     ls:=StringReplace(ls,'{to}',FTo,[rfReplaceAll]);
     if FAuto then
@@ -1083,7 +1055,7 @@ begin
 
     ls:=StringReplace(ls,'{text}',EncodeURLElement(FText),[rfReplaceAll]);
 
-    ls:=ltr.FormPost(FHost+FData,ls);
+    ls:=ltr.FormPost(FHost+'ttranslatev3/',ls);
 
     if ls<>'' then
     begin
@@ -1115,44 +1087,27 @@ begin
   ltr.Free;
 end;
 
-//===== Prompt =====
+//===== Promt (not ready) =====
 
-constructor TTranslatePrompt.Create;
+constructor TTranslatePromt.Create;
 begin
   inherited;
 
-  FHost := 'https://www.online-translator.com';
-  FData := '/services/soap.asmx/GetTranslation';
-  FFormData := '';
+  FName  := 'Promt';
+  FDescr := '';
+  FHost  := 'https://www.online-translator.com'; // 'https://www.translate.ru'
+
+  FSupport := [trTranslate];
 end;
 
-procedure TTranslatePrompt.SetLang(index:integer; const alang:string);
-//var  llang:string;
-begin
-  inherited SetLang(index,alang);
-end;
-
-function TTranslatePrompt.Translate:integer;
+function TTranslatePromt.Translate:integer;
 var
   ls:string;
   ltr:TFPHTTPClient;
   jn:TJsonNode;
 begin
-  FOut:='';
-  result:=DefaultResCode;
-
-  if FAuto or (FFrom='') or (FTo='') then
-  begin
-    FResult:=sWrongLanguage;
-    exit;
-  end;
-
-  if (FFrom=FTo) or (FText='') then
-  begin
-    FOut:=FText;
-    FResult:='';
-    result:=0;
-  end;
+  result:=inherited;
+  if (result=0) or (FResult<>'') then exit;
 
   FResult:=sUnknownError;
 
@@ -1160,12 +1115,15 @@ begin
   try
     ltr.IOTimeout:=FTimeout;
 
-    ls:=FFormData;
+    ls:='{ dirCode:''{from}-{to}'', template:''General'', text:''{text}'','+
+        ' lang:''en'', limit:''3000'',useAutoDetect:true, key:'''','+
+        ' ts:''MainSite'',tid:'''', IsMobile:true}';
+
     ls:=StringReplace(ls,'{to}'  ,FTo  ,[rfReplaceAll]);
     ls:=StringReplace(ls,'{from}',FFrom,[rfReplaceAll]);
     ls:=StringReplace(ls,'{text}',EncodeURLElement(FText),[rfReplaceAll]);
 
-    ls:=ltr.FormPost(FHost+FData,ls);
+    ls:=ltr.FormPost(FHost+'/services/soap.asmx/GetTranslation',ls);
 
     jn:=TJsonNode.Create;
     try
@@ -1182,6 +1140,130 @@ begin
         else
           FResult:=sUnknownError+' '+IntToStr(result);
 }
+      end;
+    finally
+      jn.Free;
+    end;
+
+  except
+  end;
+  ltr.Free;
+end;
+
+//===== M-Translate =====
+
+constructor TTranslateMTranslate.Create;
+begin
+  inherited;
+
+  FName  := 'M-Translate';
+  FDescr := '(microsoft)';
+  FHost  := 'https://www.m-translate.com/';
+
+  FSupport := [trTranslate,trDetect];
+end;
+
+function TTranslateMTranslate.Translate:integer;
+var
+  ls:string;
+  ltr:TFPHTTPClient;
+  jn,jl:TJsonNode;
+begin
+  result:=inherited;
+  if (result=0) or (FResult<>'') then exit;
+
+  FResult:=sUnknownError;
+
+  ltr:=TFPHTTPClient.Create(nil);
+  try
+    ltr.IOTimeout:=FTimeout;
+
+    ls:='translate_to={to}&translate_from={from}&text={text}';
+
+    ls:=StringReplace(ls,'{to}',FTo,[rfReplaceAll]);
+    if FAuto then
+      ls:=StringReplace(ls,'{from}','',[rfReplaceAll])
+    else
+      ls:=StringReplace(ls,'{from}',FFrom,[rfReplaceAll]);
+
+    ls:=StringReplace(ls,'{text}',EncodeURLElement(FText),[rfReplaceAll]);
+
+    ls:=ltr.FormPost(FHost+'translate',ls);
+
+    jn:=TJsonNode.Create;
+    try
+      if jn.TryParse(ls) then
+      begin
+        if FAuto then
+        begin
+          jl:=jn.Child('detected_lang');
+          if jl<>nil then
+            FFrom:=jl.AsString;
+        end;
+        FOut:=jn.Child(0).AsString; // or Child('translate')
+        FResult:='';
+        result:=0;
+      end;
+    finally
+      jn.Free;
+    end;
+
+  except
+  end;
+  ltr.Free;
+end;
+
+//===== Translate =====
+
+constructor TTranslateTranslate.Create;
+begin
+  inherited;
+
+  FName  := 'Translate';
+  FDescr := '(microsoft)';
+  FHost  := 'https://www.translate.com/';
+
+  FSupport := [trTranslate,trDetect];
+end;
+
+function TTranslateTranslate.Translate:integer;
+var
+  ls:string;
+  ltr:TFPHTTPClient;
+  jn:TJsonNode;
+begin
+  result:=inherited;
+  if (result=0) or (FResult<>'') then exit;
+
+  FResult:=sUnknownError;
+
+  ltr:=TFPHTTPClient.Create(nil);
+  try
+    ltr.IOTimeout:=FTimeout;
+
+    ls:='text_to_translate={text}&source_lang={from}&translated_lang={to}'+
+        '&use_cache_only=false';
+
+    ls:=StringReplace(ls,'{to}',FTo,[rfReplaceAll]);
+    if FAuto then
+      ls:=StringReplace(ls,'&source_lang={from}','',[rfReplaceAll])
+    else
+      ls:=StringReplace(ls,'{from}',FFrom,[rfReplaceAll]);
+
+    ls:=StringReplace(ls,'{text}',EncodeURLElement(FText),[rfReplaceAll]);
+
+    ls:=ltr.FormPost(FHost+'translator/ajax_translate',ls);
+
+    jn:=TJsonNode.Create;
+    try
+      if jn.TryParse(ls) then
+      begin
+        if jn.Child('result').AsString='success' then
+        begin
+          FOut:=jn.Child('translated_text').AsString;
+          FResult:='';
+          result:=0;
+        end;
       end;
     finally
       jn.Free;
