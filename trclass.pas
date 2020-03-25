@@ -70,9 +70,9 @@ type
     property Timeout:integer read FTimeout write FTimeout default DefaultTimeout;
 
     // changeable
-    property LangAuto:boolean read FAuto write SetAuto;
-    property LangSrc:string index 0 read FFrom write SetLang;
-    property LangDst:string index 1 read FTo   write SetLang;
+    property LangAuto:boolean        read FAuto write SetAuto;
+    property LangSrc :string index 0 read FFrom write SetLang;
+    property LangDst :string index 1 read FTo   write SetLang;
 
     property Key:string read FAPIKey write FAPIKey; // API key (if presents)
 
@@ -103,7 +103,7 @@ type
     FAppId:string;
 
   public
-    constructor Create;// override;
+    constructor Create;
 
     function Detect   :boolean; override;
     function Translate:integer; override;
@@ -116,7 +116,7 @@ type
   private
     procedure SetLang(index:integer; const alang:string); override;
   public
-    constructor Create;// override;
+    constructor Create;
 
     function Translate:integer; override;
   end;
@@ -128,7 +128,7 @@ type
   private
     FEmail:string;
   public
-    constructor Create;// override;
+    constructor Create;
 
     function Translate:integer; override;
 
@@ -150,7 +150,7 @@ type
 
     procedure SetLang(index:integer; const alang:string); override;
   public
-    constructor Create;// override;
+    constructor Create;
 
     function Detect   :boolean; override;
     function Translate:integer; override;
@@ -163,22 +163,23 @@ type
   private
     procedure SetLang(index:integer; const alang:string); override;
   public
-    constructor Create;// override;
+    constructor Create;
 
     function Detect   :boolean; override;
     function Translate:integer; override;
   end;
 
 //----- Promt (not ready) -----
-
+(*
 type
   TTranslatePromt = class(TTranslateBase)
   private
   public
-    constructor Create;// override;
+    constructor Create;
 
     function Translate:integer; override;
   end;
+*)
 
 //----- M-Translate -----
 
@@ -186,7 +187,7 @@ type
   TTranslateMTranslate = class(TTranslateBase)
   private
   public
-    constructor Create;// override;
+    constructor Create;
 
     function Translate:integer; override;
   end;
@@ -197,7 +198,7 @@ type
   TTranslateTranslate = class(TTranslateBase)
   private
   public
-    constructor Create;// override;
+    constructor Create;
 
     function Translate:integer; override;
   end;
@@ -1088,7 +1089,7 @@ begin
 end;
 
 //===== Promt (not ready) =====
-
+(*
 constructor TTranslatePromt.Create;
 begin
   inherited;
@@ -1149,7 +1150,7 @@ begin
   end;
   ltr.Free;
 end;
-
+*)
 //===== M-Translate =====
 
 constructor TTranslateMTranslate.Create;
