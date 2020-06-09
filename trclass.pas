@@ -528,7 +528,7 @@ begin
 
   if i>=0 then
   begin
-    Str(SupLangBabylon[j].code,ls);
+    Str(i,ls);
     if index=0 then
       FFrom:=ls
     else
